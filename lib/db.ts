@@ -3,12 +3,25 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 function ensureDatabaseUrl() {
-  if (process.env.DATABASE_URL && process.env.DATABASE_URL.trim()) {
-    return;
+  let databaseUrl = process.env.DATABASE_URL?.trim();
+
+  if (!databaseUrl) {
+    const devDbPath = path.join(process.cwd(), "prisma", "dev.db");
+    databaseUrl = pathToFileURL(devDbPath).toString();
   }
 
-  const devDbPath = path.join(process.cwd(), "prisma", "dev.db");
-  process.env.DATABASE_URL = pathToFileURL(devDbPath).toString();
+  if (databaseUrl.startsWith("file:")) {
+    const filePath = databaseUrl.slice("file:".length);
+    const hasHost = filePath.startsWith("//");
+    const isAbsolutePath = hasHost || path.isAbsolute(filePath);
+
+    if (!isAbsolutePath) {
+      const resolvedPath = path.resolve(process.cwd(), filePath);
+      databaseUrl = pathToFileURL(resolvedPath).toString();
+    }
+  }
+
+  process.env.DATABASE_URL = databaseUrl;
 }
 
 ensureDatabaseUrl();
